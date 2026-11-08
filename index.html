@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f172a, #1e1b4b);
+            overflow: hidden;
+        }
+
+        /* Glassmorphism Container */
+        .calculator {
+            position: relative;
+            width: 360px;
+            padding: 25px;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Ambient background glow effects */
+        body::before, body::after {
+            content: '';
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            z-index: -1;
+            filter: blur(80px);
+            opacity: 0.4;
+        }
+        body::before {
+            background: #3b82f6;
+            top: 20%;
+            left: 25%;
+        }
+        body::after {
+            background: #a855f7;
+            bottom: 20%;
+            right: 25%;
+        }
+
+        /* Display Panel */
+        .display {
+            width: 100%;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: flex-end;
+            margin-bottom: 20px;
+            padding: 10px 15px;
+            border-radius: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            word-break: break-all;
+            word-wrap: break-word;
+        }
+
+        .display .history {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.4);
+            margin-bottom: 5px;
+            min-height: 20px;
+        }
+
+        .display .current {
+            font-size: 2.2rem;
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        /* Button Layout Grid */
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        button {
+            padding: 18px;
+            border-radius: 14px;
+            border: none;
+            outline: none;
+            font-size: 1.25rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.05);
+            color: #f1f5f9;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        /* Context Specific Styling */
+        button.operator {
+            color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        button.operator:hover {
+            background: rgba(59, 130, 246, 0.25);
+        }
+
+        button.clear, button.delete {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        button.clear:hover, button.delete:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        button.equals {
+            grid-column: span 2;
+            background: linear-gradient(135deg, #3b82f6, #a855f7);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+        }
+
+        button.equals:hover {
+            background: linear-gradient(135deg, #4f46e5, #c084fc);
+            box-shadow: 0 6px 16px rgba(168, 85, 247, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="calculator">
+        <div class="display">
+            <div id="history" class="history"></div>
+            <div id="current" class="current">0</div>
+        </div>
+        <div class="buttons">
+            <button class="clear" data-action="clear">AC</button>
+            <button class="delete" data-action="delete">DEL</button>
+            <button class="operator" data-value="%">%</button>
+            <button class="operator" data-value="/">÷</button>
+
+            <button data-value="7">7</button>
+            <button data-value="8">8</button>
+            <button data-value="9">9</button>
+            <button class="operator" data-value="*">×</button>
+
+            <button data-value="4">4</button>
+            <button data-value="5">5</button>
+            <button data-value="6">6</button>
+            <button class="operator" data-value="-">−</button>
+
+            <button data-value="1">1</button>
+            <button data-value="2">2</button>
+            <button data-value="3">3</button>
+            <button class="operator" data-value="+">+</button>
+
+            <button data-value="0">0</button>
+            <button data-value=".">.</button>
+            <button class="equals" data-action="calculate">=</button>
+        </div>
+    </div>
+
+    <script>
+        const currentDisplay = document.getElementById('current');
+        const historyDisplay = document.getElementById('history');
+        const buttons = document.querySelectorAll('button');
+
+        let currentInput = '0';
+        let previousInput = '';
+        let operator = null;
+        let shouldResetDisplay = false;
+
+        buttons.forEach(button => {
+            button.addEventListener('click', () => {
+                const value = button.getAttribute('data-value');
+                const action = button.getAttribute('data-action');
+
+                if (value !== null) {
+                    if (!isNaN(value) || value === '.') {
+                        appendNumber(value);
+                    } else {
+                        handleOperator(value);
+                    }
+                } else if (action !== null) {
+                    handleAction(action);
+                }
+                updateDisplay();
+            });
+        });
+
+        function appendNumber(number) {
+            if (currentInput === '0' && number !== '.') {
+                currentInput = number;
+            } else if (shouldResetDisplay) {
+                currentInput = number;
+                shouldResetDisplay = false;
+            } else {
+                if (number === '.' && currentInput.includes('.')) return;
+                currentInput += number;
+            }
+        }
+
+        function handleOperator(nextOperator) {
+            const parsedCurrent = parseFloat(currentInput);
+
+            if (operator && shouldResetDisplay) {
+                operator = nextOperator;
+                previousInput = previousInput.slice(0, -1) + getOperatorSymbol(nextOperator);
+                return;
+            }
+
+            if (previousInput === '') {
+                previousInput = `${currentInput} ${getOperatorSymbol(nextOperator)}`;
+            } else if (operator) {
+                const result = calculate();
+                currentInput = String(result);
+                previousInput = `${result} ${getOperatorSymbol(nextOperator)}`;
+            }
+
+            operator = nextOperator;
+            shouldResetDisplay = true;
+        }
+
+        function handleAction(action) {
+            switch(action) {
+                case 'clear':
+                    currentInput = '0';
+                    previousInput = '';
+                    operator = null;
+                    shouldResetDisplay = false;
+                    break;
+                case 'delete':
+                    if (shouldResetDisplay) return;
+                    if (currentInput.length > 1) {
+                        currentInput = currentInput.slice(0, -1);
+                    } else {
+                        currentInput = '0';
+                    }
+                    break;
+                case 'calculate':
+                    if (!operator || previousInput === '') return;
+                    const result = calculate();
+                    historyDisplay.textContent = `${previousInput} ${currentInput} =`;
+                    currentInput = String(result);
+                    previousInput = '';
+                    operator = null;
+                    shouldResetDisplay = true;
+                    return;
+            }
+        }
+
+        function calculate() {
+            const prev = parseFloat(previousInput);
+            const current = parseFloat(currentInput);
+            if (isNaN(prev) || window.isNaN(current)) return;
+
+            let computation;
+            switch(operator) {
+                case '+': computation = prev + current; break;
+                case '-': computation = prev - current; break;
+                case '*': computation = prev * current; break;
+                case '/': computation = current === 0 ? 'Error' : prev / current; break;
+                case '%': computation = (prev / 100) * current; break;
+                default: return;
+            }
+            // Fix long floating point math errors (e.g., 0.1 + 0.2)
+            return typeof computation === 'number' ? Math.round(computation * 1e12) / 1e12 : computation;
+        }
+
+        function getOperatorSymbol(op) {
+            switch(op) {
+                case '*': return '×';
+                case '/': return '÷';
+                case '-': return '−';
+                default: return op;
+            }
+        }
+
+        function updateDisplay() {
+            currentDisplay.textContent = currentInput;
+            if (previousInput !== '') {
+                historyDisplay.textContent = previousInput;
+            } else if (!historyDisplay.textContent.includes('=')) {
+                historyDisplay.textContent = '';
+            }
+        }
+    </script>
+</body>
+</html>
